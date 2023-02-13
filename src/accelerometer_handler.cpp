@@ -34,8 +34,8 @@ const float MAP_OUT_MIN = -MAP_OUT_MAX;
 
 const float ratio = (MAP_OUT_MAX - MAP_OUT_MIN) / (MAP_IN_MAX - MAP_IN_MIN);
 #define FMAP(input_data) (input_data - MAP_IN_MIN) * ratio + MAP_OUT_MIN
-
-#define RING_BUFFER_SIZE (200 * 3) /*channel*/ // 200 * 3
+#define RING_BUFFER_SIZE_1CH 100
+#define RING_BUFFER_SIZE (RING_BUFFER_SIZE_1CH * 3) /*channel*/ // 200 * 3
 
 // A buffer holding the last 200 sets of 3-channel values
 float save_data[RING_BUFFER_SIZE] = {0.0};
@@ -58,13 +58,64 @@ TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
 }
 
 int cnt = 0;
-static const int accel_data_num = 500;
-typedef struct
+#define accel_data_num 500
+
+class Vector3
 {
+public:
   float x, y, z;
-} Vector3;
-Vector3 accel_datas[accel_data_num] = {{0.0f, 0.0f, 0.0f}};
-Vector3 accel_sum = {0.0f, 0.0f, 0.0f};
+  Vector3(float _x, float _y, float _z)
+  {
+    x = _x;
+    y = _y;
+    z = _z;
+  }
+  Vector3()
+  {
+    x = 0.0;
+    y = 0.0;
+    z = 0.0;
+  }
+  void Set(float _x, float _y, float _z)
+  {
+    x = _x;
+    y = _y;
+    z = _z;
+  }
+  void Set(Vector3 new_vector)
+  {
+    x = new_vector.x;
+    y = new_vector.y;
+    z = new_vector.z;
+  }
+  void Add(Vector3 new_vector)
+  {
+    x += new_vector.x;
+    y += new_vector.y;
+    z += new_vector.z;
+  }
+  void Sub(Vector3 new_vector)
+  {
+    x -= new_vector.x;
+    y -= new_vector.y;
+    z -= new_vector.z;
+  }
+  void MulScalar(float scalar)
+  {
+    x *= scalar;
+    y *= scalar;
+    z *= scalar;
+  }
+  void Print()
+  {
+    printf("%f, %f, %f\n", x, y, z);
+  }
+};
+
+Vector3 zero_vector(0.0, 0.0, 0.0);
+Vector3 accel_datas[accel_data_num];
+Vector3 accel_sum = zero_vector;
+
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
 {
@@ -83,22 +134,11 @@ static bool AcquireData()
           = 0.0015625 s
           = 1.5625 ms
   */
-
-  int x_raw = analogRead(PIN_X);
-  int y_raw = analogRead(PIN_Y);
-  int z_raw = analogRead(PIN_Z);
-
-  accel_sum.x -= accel_datas[cnt].x;
-  accel_datas[cnt].x = x_raw;
-  accel_sum.x += accel_datas[cnt].x;
-
-  accel_sum.y -= accel_datas[cnt].y;
-  accel_datas[cnt].y = y_raw;
-  accel_sum.y += accel_datas[cnt].y;
-
-  accel_sum.z -= accel_datas[cnt].z;
-  accel_datas[cnt].z = z_raw;
-  accel_sum.z += accel_datas[cnt].z;
+  Vector3 raw(analogRead(PIN_X), analogRead(PIN_Y), analogRead(PIN_Z));
+  raw.Print();
+  accel_sum.Sub(accel_datas[cnt]);
+  accel_datas[cnt].Set(raw);
+  accel_sum.Add(accel_datas[cnt]);
 
   cnt++;
   if (cnt >= accel_data_num)
@@ -116,10 +156,8 @@ static bool AcquireData()
   y = fmap(y_raw, MAP_IN_MIN, MAP_IN_MAX, MAP_OUT_MIN, MAP_OUT_MAX);
   z = fmap(z_raw, MAP_IN_MIN, MAP_IN_MAX, MAP_OUT_MIN, MAP_OUT_MAX);
 */
-  Vector3 accel_avr = {
-      accel_sum.x / (float)accel_data_num,
-      accel_sum.y / (float)accel_data_num,
-      accel_sum.z / (float)accel_data_num};
+  Vector3 accel_avr = accel_sum;
+  accel_avr.MulScalar(1.0 / accel_data_num);
   const float norm_x = FMAP(accel_avr.x);
   const float norm_y = FMAP(accel_avr.y);
   const float norm_z = FMAP(accel_avr.z);
@@ -148,8 +186,8 @@ bool ReadAccelerometer(tflite::ErrorReporter *error_reporter, float *input,
   }
 
   // Check if we are ready for prediction or still pending more initial data
-  if (pending_initial_data && begin_index >= 200) // pending : 未決定で 宙ぶらりんで pending_initial_data == true で計測中
-  {                                               // buf が埋まるまで待機っぽい?
+  if (pending_initial_data && begin_index >= RING_BUFFER_SIZE_1CH) // pending : 未決定で 宙ぶらりんで pending_initial_data == true で計測中
+  {                                                                // buf が埋まるまで待機っぽい?
     pending_initial_data = false;
     // Could be a sign to be ready
   }
