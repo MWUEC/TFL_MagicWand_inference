@@ -24,11 +24,11 @@ limitations under the License.
 #define PIN_Y A1
 #define PIN_Z A2
 
-#define g 630.0
-#define zero 2330.0
+#define g 630
+#define zero 2330
 
-const float MAP_IN_MAX = (zero + 3 * g);
-const float MAP_IN_MIN = (zero - 3 * g);
+const float MAP_IN_MAX = (float)(zero + 3 * g);
+const float MAP_IN_MIN = (float)(zero - 3 * g);
 const float MAP_OUT_MAX = 3000.0;
 const float MAP_OUT_MIN = -MAP_OUT_MAX;
 
@@ -61,83 +61,52 @@ TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
 }
 
 int cnt = 0;
-#define accel_data_num 50
+#define accel_data_num 3
 
-class Vector3
-{
-public:
-  float x, y, z;
-  Vector3(float _x, float _y, float _z){
-    x = _x;
-    y = _y;
-    z = _z;
-  }
-  Vector3(){
-    x = zero;
-    y = zero;
-    z = zero;
-  }
-  void Set(float _x, float _y, float _z){
-    x = _x;
-    y = _y;
-    z = _z;
-  }
-  void Set(Vector3 new_vector){
-    x = new_vector.x;
-    y = new_vector.y;
-    z = new_vector.z;
-  }
-  void Add(Vector3 new_vector){
-    x += new_vector.x;
-    y += new_vector.y;
-    z += new_vector.z;
-  }
-  void Sub(Vector3 new_vector){
-    x -= new_vector.x;
-    y -= new_vector.y;
-    z -= new_vector.z;
-  }
-  void MulScalar(float scalar){
-    x *= scalar;
-    y *= scalar;
-    z *= scalar;
-  }
-  void Print(){
-    printf("%f, %f, %f", x, y, z);
-  }
-  void Println(){
-    Print();
-    printf("\n");
-  }
-};
+int accel_raw_datas_x[accel_data_num] = {0};
+int accel_raw_datas_y[accel_data_num] = {0};
+int accel_raw_datas_z[accel_data_num] = {0};
 
-Vector3 zero_vector(zero, zero, zero);
-Vector3 accel_raw_datas[accel_data_num];
-Vector3 accel_raw_sum(zero*accel_data_num, zero*accel_data_num, zero*accel_data_num);
+long int accel_raw_sum_x = 0;
+long int accel_raw_sum_y = 0;
+long int accel_raw_sum_z = 0;
 
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
 {
   bool new_data = false;
 
-  Vector3 raw(analogRead(PIN_X), analogRead(PIN_Y), analogRead(PIN_Z));
-  accel_raw_sum.Sub(accel_raw_datas[cnt]);
-  accel_raw_datas[cnt].Set(raw);
-  accel_raw_sum.Add(accel_raw_datas[cnt]);
+  int accel_raw_data_x = analogRead(PIN_X);
+  int accel_raw_data_y = analogRead(PIN_Y);
+  int accel_raw_data_z = analogRead(PIN_Z);
+  
+  accel_raw_sum_x -= accel_raw_datas_x[cnt];
+  accel_raw_datas_x[cnt] = accel_raw_data_x;
+  accel_raw_sum_x += accel_raw_datas_x[cnt];
 
+  accel_raw_sum_y -= accel_raw_datas_y[cnt];
+  accel_raw_datas_y[cnt] = accel_raw_data_y;
+  accel_raw_sum_y += accel_raw_datas_y[cnt];
+
+  accel_raw_sum_z -= accel_raw_datas_z[cnt];
+  accel_raw_datas_z[cnt] = accel_raw_data_z;
+  accel_raw_sum_z += accel_raw_datas_z[cnt];
+  
   cnt++;
   if (cnt >= accel_data_num) cnt = 0;
-
+  
   // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
   if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false;
   lastAcqMillis = millis();
 
-  Vector3 accel_avr = accel_raw_sum;
-  accel_avr.MulScalar(1.0 / accel_data_num);
-  const float norm_x = Fmap(accel_avr.x);
-  const float norm_y = Fmap(accel_avr.y);
-  const float norm_z = Fmap(accel_avr.z);
-  //printf("%f, %f, %f / %f, %f, %f\n", accel_avr.x, accel_avr.y, accel_avr.z, norm_x, norm_y, norm_z);
+  float accel_avr_x = accel_raw_sum_x / accel_data_num;
+  float accel_avr_y = accel_raw_sum_y / accel_data_num;
+  float accel_avr_z = accel_raw_sum_z / accel_data_num;
+
+  const float norm_x = Fmap(accel_avr_x);
+  const float norm_y = Fmap(accel_avr_y);
+  const float norm_z = Fmap(accel_avr_z);
+  printf("%f, %f, %f\n", norm_x, norm_y, norm_z);
 
   save_data[begin_index++] = norm_x /* * 1000*/;
   save_data[begin_index++] = norm_y /* * 1000*/;
