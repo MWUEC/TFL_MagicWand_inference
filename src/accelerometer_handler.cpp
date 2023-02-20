@@ -33,7 +33,10 @@ const float MAP_OUT_MAX = 3000.0;
 const float MAP_OUT_MIN = -MAP_OUT_MAX;
 
 const float ratio = (MAP_OUT_MAX - MAP_OUT_MIN) / (MAP_IN_MAX - MAP_IN_MIN);
-#define FMAP(input_data) (input_data - MAP_IN_MIN) * ratio + MAP_OUT_MIN
+float Fmap(float input)
+{
+  return (input - MAP_IN_MIN) * ratio + MAP_OUT_MIN;
+}
 #define RING_BUFFER_SIZE_1CH 100
 #define RING_BUFFER_SIZE (RING_BUFFER_SIZE_1CH * 3) /*channel*/ // 200 * 3
 
@@ -108,59 +111,42 @@ public:
   }
   void Print()
   {
-    printf("%f, %f, %f\n", x, y, z);
+    printf("%f, %f, %f", x, y, z);
+  }
+  void Println()
+  {
+    Print();
+    printf("\n");
   }
 };
 
-Vector3 zero_vector(0.0, 0.0, 0.0);
+Vector3 zero_vector(0, 0, 0);
 Vector3 accel_datas[accel_data_num];
-Vector3 accel_sum = zero_vector;
+Vector3 accel_sum;
 
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
 {
   bool new_data = false;
 
-  /*
-  データ数 128 * 3(x, y, zの3-channel)
-  円を描くのにかかる時間 約0.2秒
-  秒間のデータ数 128/0.2 = 640個
-  serialは8bitより
-  bps = 640個/s * 8bit
-      = 5120 bit/s
-
-  秒間のデータ数 640個より
-  計測間隔 = 1/640
-          = 0.0015625 s
-          = 1.5625 ms
-  */
   Vector3 raw(analogRead(PIN_X), analogRead(PIN_Y), analogRead(PIN_Z));
-  raw.Print();
   accel_sum.Sub(accel_datas[cnt]);
   accel_datas[cnt].Set(raw);
   accel_sum.Add(accel_datas[cnt]);
 
   cnt++;
-  if (cnt >= accel_data_num)
-    cnt = 0;
+  if (cnt >= accel_data_num) cnt = 0;
 
-  if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
-  {
-    return false;
-  }
+  if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false; // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
   lastAcqMillis = millis();
 
-  /*
-  float x, y, z;
-  x = fmap(x_raw, MAP_IN_MIN, MAP_IN_MAX, MAP_OUT_MIN, MAP_OUT_MAX);
-  y = fmap(y_raw, MAP_IN_MIN, MAP_IN_MAX, MAP_OUT_MIN, MAP_OUT_MAX);
-  z = fmap(z_raw, MAP_IN_MIN, MAP_IN_MAX, MAP_OUT_MIN, MAP_OUT_MAX);
-*/
   Vector3 accel_avr = accel_sum;
   accel_avr.MulScalar(1.0 / accel_data_num);
-  const float norm_x = FMAP(accel_avr.x);
-  const float norm_y = FMAP(accel_avr.y);
-  const float norm_z = FMAP(accel_avr.z);
+  accel_avr.Println();
+  const float norm_x = Fmap(accel_avr.x);
+  const float norm_y = Fmap(accel_avr.y);
+  const float norm_z = Fmap(accel_avr.z);
+  printf("%f, %f, %f / %f, %f, %f\n", accel_avr.x, accel_avr.y, accel_avr.z, norm_x, norm_y, norm_z);
 
   save_data[begin_index++] = norm_x /* * 1000*/;
   save_data[begin_index++] = norm_y /* * 1000*/;
