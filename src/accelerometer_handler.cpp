@@ -61,7 +61,7 @@ TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
 }
 
 int cnt = 0;
-#define accel_data_num 500
+#define accel_data_num 50
 
 class Vector3
 {
@@ -73,9 +73,9 @@ public:
     z = _z;
   }
   Vector3(){
-    x = 0.0;
-    y = 0.0;
-    z = 0.0;
+    x = zero;
+    y = zero;
+    z = zero;
   }
   void Set(float _x, float _y, float _z){
     x = _x;
@@ -112,8 +112,8 @@ public:
 };
 
 Vector3 zero_vector(zero, zero, zero);
-Vector3 accel_datas[accel_data_num];
-Vector3 accel_sum(zero*accel_data_num, zero*accel_data_num, zero*accel_data_num);
+Vector3 accel_raw_datas[accel_data_num];
+Vector3 accel_raw_sum(zero*accel_data_num, zero*accel_data_num, zero*accel_data_num);
 
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
@@ -121,24 +121,23 @@ static bool AcquireData()
   bool new_data = false;
 
   Vector3 raw(analogRead(PIN_X), analogRead(PIN_Y), analogRead(PIN_Z));
-  accel_sum.Sub(accel_datas[cnt]);
-  accel_datas[cnt].Set(raw);
-  accel_sum.Add(accel_datas[cnt]);
+  accel_raw_sum.Sub(accel_raw_datas[cnt]);
+  accel_raw_datas[cnt].Set(raw);
+  accel_raw_sum.Add(accel_raw_datas[cnt]);
 
   cnt++;
   if (cnt >= accel_data_num) cnt = 0;
-  //printf("cnt:%d\n", cnt);
 
   // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
   if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false;
   lastAcqMillis = millis();
 
-  Vector3 accel_avr = accel_sum;
+  Vector3 accel_avr = accel_raw_sum;
   accel_avr.MulScalar(1.0 / accel_data_num);
   const float norm_x = Fmap(accel_avr.x);
   const float norm_y = Fmap(accel_avr.y);
   const float norm_z = Fmap(accel_avr.z);
-  printf("%f, %f, %f / %f, %f, %f\n", accel_avr.x, accel_avr.y, accel_avr.z, norm_x, norm_y, norm_z);
+  //printf("%f, %f, %f / %f, %f, %f\n", accel_avr.x, accel_avr.y, accel_avr.z, norm_x, norm_y, norm_z);
 
   save_data[begin_index++] = norm_x /* * 1000*/;
   save_data[begin_index++] = norm_y /* * 1000*/;
