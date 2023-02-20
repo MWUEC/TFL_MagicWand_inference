@@ -53,7 +53,7 @@ int sample_skip_counter = 1;
 
 long lastAcqMillis = 0;
 
-int skipBeforeMs = 1000 * (1 / sample_every_n);
+int skipBeforeMs = 1000 * (1.0 / sample_every_n);
 
 TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
 {
@@ -67,62 +67,53 @@ class Vector3
 {
 public:
   float x, y, z;
-  Vector3(float _x, float _y, float _z)
-  {
+  Vector3(float _x, float _y, float _z){
     x = _x;
     y = _y;
     z = _z;
   }
-  Vector3()
-  {
+  Vector3(){
     x = 0.0;
     y = 0.0;
     z = 0.0;
   }
-  void Set(float _x, float _y, float _z)
-  {
+  void Set(float _x, float _y, float _z){
     x = _x;
     y = _y;
     z = _z;
   }
-  void Set(Vector3 new_vector)
-  {
+  void Set(Vector3 new_vector){
     x = new_vector.x;
     y = new_vector.y;
     z = new_vector.z;
   }
-  void Add(Vector3 new_vector)
-  {
+  void Add(Vector3 new_vector){
     x += new_vector.x;
     y += new_vector.y;
     z += new_vector.z;
   }
-  void Sub(Vector3 new_vector)
-  {
+  void Sub(Vector3 new_vector){
     x -= new_vector.x;
     y -= new_vector.y;
     z -= new_vector.z;
   }
-  void MulScalar(float scalar)
-  {
+  void MulScalar(float scalar){
     x *= scalar;
     y *= scalar;
     z *= scalar;
   }
-  void Print()
-  {
+  void Print(){
     printf("%f, %f, %f", x, y, z);
   }
-  void Println()
-  {
+  void Println(){
     Print();
     printf("\n");
   }
 };
 
-Vector3 zero_vector(0, 0, 0);
+Vector3 zero_vector(zero, zero, zero);
 Vector3 accel_datas[accel_data_num];
-Vector3 accel_sum;
+Vector3 accel_sum(zero*accel_data_num, zero*accel_data_num, zero*accel_data_num);
 
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
@@ -136,13 +127,14 @@ static bool AcquireData()
 
   cnt++;
   if (cnt >= accel_data_num) cnt = 0;
+  //printf("cnt:%d\n", cnt);
 
-  if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false; // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
+  // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
+  if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false;
   lastAcqMillis = millis();
 
   Vector3 accel_avr = accel_sum;
   accel_avr.MulScalar(1.0 / accel_data_num);
-  accel_avr.Println();
   const float norm_x = Fmap(accel_avr.x);
   const float norm_y = Fmap(accel_avr.y);
   const float norm_z = Fmap(accel_avr.z);
@@ -161,8 +153,8 @@ static bool AcquireData()
   return new_data;
 }
 
-bool ReadAccelerometer(tflite::ErrorReporter *error_reporter, float *input,
-                       int input_length)
+bool ReadAccelerometer(tflite::ErrorReporter *error_reporter, 
+                       float *input, int input_length)
 {
 
   // Skip this round if data is not ready yet
