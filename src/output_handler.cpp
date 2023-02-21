@@ -70,13 +70,13 @@ void HandleOutput(tflite::ErrorReporter *error_reporter, int kind)
   else if (kind == 2)
   {
     // tone(PIN_SPEAKER, DO_FRQ, CHECK_TONE_TIME);
-    digitalWrite(PIN_LED, HIGH);
-    delay(300);
-    digitalWrite(PIN_LED, LOW);
-    delay(100);
-    digitalWrite(PIN_LED, HIGH);
-    delay(100);
-    digitalWrite(PIN_LED, LOW);
+    //digitalWrite(PIN_LED, HIGH);
+    //delay(300);
+    //digitalWrite(PIN_LED, LOW);
+    //delay(100);
+    //digitalWrite(PIN_LED, HIGH);
+    //delay(100);
+    //digitalWrite(PIN_LED, LOW);
 #if DEBUG_INF_RES
     // error_reporter->Report("\n\r█ Obliviate █\n\r");
     error_reporter->Report(
