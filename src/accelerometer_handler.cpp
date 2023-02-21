@@ -60,53 +60,21 @@ TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
   return kTfLiteOk;
 }
 
-int cnt = 0;
-#define accel_data_num 3
-
-int accel_raw_datas_x[accel_data_num] = {0};
-int accel_raw_datas_y[accel_data_num] = {0};
-int accel_raw_datas_z[accel_data_num] = {0};
-
-long int accel_raw_sum_x = 0;
-long int accel_raw_sum_y = 0;
-long int accel_raw_sum_z = 0;
-
 // Adapted from https://blog.boochow.com/article/m5stack-tflite-magic-wand.html
 static bool AcquireData()
 {
   bool new_data = false;
-
-  int accel_raw_data_x = analogRead(PIN_X);
-  int accel_raw_data_y = analogRead(PIN_Y);
-  int accel_raw_data_z = analogRead(PIN_Z);
-  
-  accel_raw_sum_x -= accel_raw_datas_x[cnt];
-  accel_raw_datas_x[cnt] = accel_raw_data_x;
-  accel_raw_sum_x += accel_raw_datas_x[cnt];
-
-  accel_raw_sum_y -= accel_raw_datas_y[cnt];
-  accel_raw_datas_y[cnt] = accel_raw_data_y;
-  accel_raw_sum_y += accel_raw_datas_y[cnt];
-
-  accel_raw_sum_z -= accel_raw_datas_z[cnt];
-  accel_raw_datas_z[cnt] = accel_raw_data_z;
-  accel_raw_sum_z += accel_raw_datas_z[cnt];
-  
-  cnt++;
-  if (cnt >= accel_data_num) cnt = 0;
-  
   // 1.5ms以内での連続した計測をしないようにしている。デフォルト値:40ms
   if ((millis() - lastAcqMillis) < skipBeforeMs /*40*/) return false;
   lastAcqMillis = millis();
 
-  float accel_avr_x = accel_raw_sum_x / accel_data_num;
-  float accel_avr_y = accel_raw_sum_y / accel_data_num;
-  float accel_avr_z = accel_raw_sum_z / accel_data_num;
+  int accel_raw_data_x = analogRead(PIN_X);
+  int accel_raw_data_y = analogRead(PIN_Y);
+  int accel_raw_data_z = analogRead(PIN_Z);
 
-  const float norm_x = Fmap(accel_avr_x);
-  const float norm_y = Fmap(accel_avr_y);
-  const float norm_z = Fmap(accel_avr_z);
-  printf("%f, %f, %f\n", norm_x, norm_y, norm_z);
+  const float norm_x = Fmap(accel_raw_data_x);
+  const float norm_y = Fmap(accel_raw_data_y);
+  const float norm_z = Fmap(accel_raw_data_z);
 
   save_data[begin_index++] = norm_x /* * 1000*/;
   save_data[begin_index++] = norm_y /* * 1000*/;
